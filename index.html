@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>GTA San Andreas Mini</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: 'Courier New', monospace;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+        }
+        #gameContainer {
+            position: relative;
+            width: 900px;
+            height: 600px;
+            border: 2px solid #333;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        #gameCanvas { background: #2d5a1b; display: block; }
+        #hud {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .hud-text { font-size: 13px; text-shadow: 2px 2px 4px rgba(0,0,0,0.9); margin: 2px 0; }
+        #healthBar, #armorBar, #staminaBar { width: 140px; height: 10px; border: 1px solid #fff; margin: 2px 0; }
+        #healthFill { background: #e74c3c; height: 100%; width: 100%; transition: width 0.3s; }
+        #armorFill { background: #3498db; height: 100%; width: 0%; transition: width 0.3s; }
+        #staminaFill { background: #f39c12; height: 100%; width: 100%; transition: width 0.3s; }
+        #wantedStars { font-size: 22px; color: #f39c12; }
+        #minimap {
+            position: absolute; bottom: 10px; left: 10px;
+            width: 150px; height: 150px;
+            border: 2px solid rgba(255,255,255,0.5);
+            background: rgba(0,0,0,0.6);
+            z-index: 10;
+        }
+        #minimapCanvas { width: 150px; height: 150px; }
+        #weaponInfo {
+            position: absolute; bottom: 10px; right: 10px;
+            padding: 6px 12px; background: rgba(0,0,0,0.6);
+            border: 1px solid #555; z-index: 10; text-align: center;
+        }
+        #missionText {
+            position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%);
+            padding: 8px 25px; background: rgba(0,0,0,0.75);
+            border: 1px solid #f39c12; font-size: 14px; color: #f39c12;
+            z-index: 10; display: none; white-space: nowrap;
+        }
+        #title { font-size: 20px; color: #f39c12; margin-top: 5px; letter-spacing: 3px; }
+        #controls { font-size: 11px; color: #888; margin-top: 3px; }
+        #moneyDisplay { color: #2ecc71; font-size: 16px; font-weight: bold; }
+        #respawnScreen {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(139,0,0,0.85); z-index: 30;
+            display: none; justify-content: center; align-items: center; flex-direction: column;
+        }
+        #respawnScreen h1 { color: #fff; font-size: 52px; }
+        #respawnScreen p { font-size: 16px; color: #ddd; margin-top: 15px; }
+        #startScreen {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.95); z-index: 40;
+            display: flex; justify-content: center; align-items: center; flex-direction: column;
+        }
+        #startScreen h1 { color: #f39c12; font-size: 36px; margin-bottom: 10px; }
+        #startScreen h2 { color: #e67e22; font-size: 18px; margin-bottom: 30px; font-weight: normal; }
+        #startScreen button {
+            padding: 12px 40px; background: #f39c12; color: #000;
+            border: none; cursor: pointer; font-family: 'Courier New';
+            font-weight: bold; font-size: 18px; margin: 8px;
+        }
+        #startScreen button:hover { background: #e67e22; }
+        #startScreen .info { color: #888; font-size: 12px; margin-top: 20px; max-width: 500px; text-align: center; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <div id="title">★ GTA SAN ANDREAS MINI ★</div>
+    <div id="controls">WASD: Mover | CLICK: Disparar | E: Vehículo | F: Interactuar | 1-4: Armas | SHIFT: Correr</div>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="900" height="600"></canvas>
+        <div id="hud">
+            <div>
+                <div id="moneyDisplay">\$10,000</div>
+                <div class="hud-text">❤️ Salud</div>
+                <div id="healthBar"><div id="healthFill"></div></div>
+                <div class="hud-text">🛡️ Armadura</div>
+                <div id="armorBar"><div id="armorFill"></div></div>
+                <div class="hud-text">⚡ Stamina</div>
+                <div id="staminaBar"><div id="staminaFill"></div></div>
+            </div>
+            <div style="text-align:right">
+                <div id="wantedStars"></div>
+                <div class="hud-text" id="locationText">Grove Street</div>
+                <div class="hud-text" id="timeText">12:00</div>
+            </div>
+        </div>
+        <div id="minimap"><canvas id="minimapCanvas" width="150" height="150"></canvas></div>
+        <div id="weaponInfo">
+            <div class="hud-text" id="weaponName">👊 Puños</div>
+            <div class="hud-text" id="ammoCount">∞</div>
+        </div>
+        <div id="missionText"></div>
+        <div id="respawnScreen"><h1>WASTED</h1><p>Presiona ENTER para reaparecer</p></div>
+        <div id="startScreen">
+            <h1>★ GTA SAN ANDREAS ★</h1>
+            <h2>~ Mini Edition ~</h2>
+            <button onclick="startGame()">NUEVA PARTIDA</button>
+            <div class="info">
+                Explora la ciudad, completa misiones, roba vehículos, lucha contra pandillas y escapa de la policía.
+                Acércate a los marcadores amarillos (misiones) y azules (tiendas) para interactuar.
+            </div>
+        </div>
+    </div>
+
+<script>
+// ===== CANVAS =====
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const miniCanvas = document.getElementById('minimapCanvas');
+const miniCtx = miniCanvas.getContext('2d');
+const CW = 900, CH = 600;
+const WORLD_W = 4000, WORLD_H = 4000;
+
+// ===== GAME STATE =====
+let gameStarted = false;
+const game = {
+    time: 720, money: 10000, wantedLevel: 0, wantedTimer: 0,
+    missionActive: null, missionStep: 0, completedMissions: [],
+    kills: 0, particles: [], bullets: [], pickups: []
+};
+
+// ===== PLAYER =====
+const player = {
+    x: 2000, y: 2050, w: 18, h: 18, speed: 2.8, runSpeed: 5,
+    angle: 0, health: 100, armor: 0, stamina: 100,
+    inVehicle: null,
+    weapons: [
+        { name: 'Puños', ammo: Infinity, damage: 20, range: 35, rate: 18, type: 'melee', icon: '👊' },
+        { name: '9mm Pistola', ammo: 60, damage: 25, range: 280, rate: 12, type: 'gun', icon: '🔫' },
+        { name: 'AK-47', ammo: 150, damage: 30, range: 350, rate: 4, type: 'gun', icon: '🔫' },
+        { name: 'Escopeta', ammo: 30, damage: 55, range: 120, rate: 22, type: 'gun', icon: '🔫' }
+    ],
+    currentWeapon: 0, fireTimer: 0, dead: false
+};
+
+// ===== INPUT =====
+const keys = {};
+let mouseDown = false;
+let mouse = { x: CW / 2, y: CH / 2 };
+document.addEventListener('keydown', e => {
+    keys[e.key.toLowerCase()] = true;
+    if (e.key === ' ') e.preventDefault();
+    if (e.key >= '1' && e.key <= '4') { player.currentWeapon = +e.key - 1; updateWeaponHUD(); }
+    if (e.key.toLowerCase() === 'e' && gameStarted) toggleVehicle();
+    if (e.key.toLowerCase() === 'f' && gameStarted) interact();
+    if (e.key === 'Enter' && player.dead) respawn();
+});
+document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+canvas.addEventListener('mousemove', e => {
+    const r = canvas.getBoundingClientRect();
+    mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
+});
+canvas.addEventListener('mousedown', () => mouseDown = true);
+canvas.addEventListener('mouseup', () => mouseDown = false);
+
+// ===== ZONES =====
+const zones = [
+    { name: "Grove Street", x: 1800, y: 1900, w: 500, h: 400 },
+    { name: "Downtown Los Santos", x: 600, y: 600, w: 800, h: 600 },
+    { name: "Playa del Seville", x: 2500, y: 400, w: 600, h: 500 },
+    { name: "Idlewood", x: 1200, y: 1600, w: 500, h: 500 },
+    { name: "East Los Santos", x: 2600, y: 1500, w: 600, h: 600 },
+    { name: "Vinewood", x: 400, y: 1800, w: 600, h: 500 },
+    { name: "Zona Industrial", x: 2800, y: 2800, w: 700, h: 700 },
+    { name: "Countryside", x: 100, y: 2800, w: 800, h: 700 }
+];
+
+// ===== BUILDINGS =====
+const buildings = [];
+const roads = [];
+
+function generateWorld() {
+    // Carreteras principales
+    for (let i = 0; i < WORLD_W; i += 500) {
+        roads.push({ x: i, y: 0, w: 60, h: WORLD_H, dir: 'v' });
+    }
+    for (let j = 0; j < WORLD_H; j += 500) {
+        roads.push({ x: 0, y: j, w: WORLD_W, h: 60, dir: 'h' });
+    }
+    // Edificios entre calles
+    const colors = ['#555','#666','#777','#6a6a6a','#5a5a5a','#7a6a5a','#8a7a6a','#4a4a5a'];
+    for (let bx = 80; bx < WORLD_W - 100; bx += 500) {
+        for (let by = 80; by < WORLD_H - 100; by += 500) {
+            let numB = 2 + Math.floor(Math.random() * 3);
+            for (let n = 0; n < numB; n++) {
+                let bw = 40 + Math.random() * 100;
+                let bh = 40 + Math.random() * 100;
+                let px = bx + Math.random() * (400 - bw);
+                let py = by + Math.random() * (400 - bh);
+                // No colocar en carreteras
+                let onRoad = false;
+                for (let r of roads) {
+                    if (px < r.x + r.w && px + bw > r.x && py < r.y + r.h && py + bh > r.y) { onRoad = true; break; }
+                }
+                if (!onRoad) {
+                    buildings.push({
+                        x: px, y: py, w: bw, h: bh,
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        floors: 1 + Math.floor(Math.random() * 5)
+                    });
+                }
+            }
+        }
+    }
+}
+
+// ===== VEHICLES =====
+const vehicles = [];
+const vehicleTypes = [
+    { name: 'Greenwood', w: 40, h: 22, speed: 5, color: '#2ecc71', accel: 0.08 },
+    { name: 'Savanna', w: 42, h: 22, speed: 5.5, color: '#9b59b6', accel: 0.09 },
+    { name: 'Infernus', w: 38, h: 20, speed: 7.5, color: '#e74c3c', accel: 0.14 },
+    { name: 'Police Car', w: 42, h: 22, speed: 6.5, color: '#000', accel: 0.11 },
+    { name: 'Camión', w: 55, h: 26, speed: 4, color: '#e67e22', accel: 0.05 },
+    { name: 'Lowrider', w: 42, h: 22, speed: 5, color: '#1abc9c', accel: 0.08 },
+];
+
+function spawnVehicles() {
+    for (let r of roads) {
+        let count = Math.floor((r.dir === 'h' ? r.w : r.h) / 400);
+        for (let i = 0; i < count; i++) {
+            let vt = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)];
+            let vx, vy, va;
+            if (r.dir === 'h') {
+                vx = r.x + 100 + Math.random() * (r.w - 200);
+                vy = r.y + 15 + Math.random() * 30;
+                va = Math.random() < 0.5 ? 0 : Math.PI;
+            } else {
+                vx = r.x + 15 + Math.random() * 30;
+                vy = r.y + 100 + Math.random() * (r.h - 200);
+                va = Math.random() < 0.5 ? Math.PI / 2 : -Math.PI / 2;
+            }
+            vehicles.push({
+                x: vx, y: vy, angle: va, vel: 0,
+                ...vt, maxSpeed: vt.speed, health: 100,
+                occupied: false, aiDrive: true, aiTimer: 0
+            });
+        }
+    }
+}
+
+// ===== PEDS (NPC) =====
+const peds = [];
+function spawnPeds() {
+    for (let i = 0; i < 60; i++) {
+        let px, py;
+        let road = roads[Math.floor(Math.random() * roads.length)];
+        if (road.dir === 'h') {
+            px = road.x + Math.random() * road.w;
+            py = road.y - 15 + Math.random() * (road.h + 30);
+        } else {
+            px = road.x - 15 + Math.random() * (road.w + 30);
+            py = road.y + Math.random() * road.h;
+        }
+        let isGang = Math.random() < 0.25;
+        let gang = isGang ? ['grove', 'ballas', 'vagos'][Math.floor(Math.random() * 3)] : null;
+        let gangColors = { grove: '#2ecc71', ballas: '#9b59b6', vagos: '#f1c40f' };
+        peds.push({
+            x: px, y: py, w: 14, h: 14, angle: Math.random() * Math.PI * 2,
+            speed: 0.8 + Math.random() * 0.8, health: 60 + Math.random() * 40,
+            moveTimer: 0, hostile: false, gang: gang,
+            color: gang ? gangColors[gang] : `hsl(${Math.random()*360},40%,50%)`,
+            dead: false, hasGun: isGang || Math.random() < 0.1,
+            fireTimer: 0, money: Math.floor(Math.random() * 200)
+        });
+    }
+}
+
+// ===== POLICE =====
+const police = [];
+function spawnPolice(count) {
+    for (let i = 0; i < count; i++) {
+        police.push({
+            x: player.x + (Math.random() - 0.5) * 800,
+            y: player.y + (Math.random() - 0.5) * 800,
+            w: 16, h: 16, speed: 3.2, health: 120,
+            color: '#3498db', fireTimer: 0, dead: false
+        });
+    }
+}
+
+// ===== MISSION MARKERS =====
+const missionMarkers = [
+    { x: 2000, y: 1950, type: 'mission', name: 'Big Smoke', desc: 'Visita a Big Smoke', quest: 'smoke1' },
+    { x: 1500, y: 1500, type: 'mission', name: 'Ryder', desc: 'Ayuda a Ryder', quest: 'ryder1' },
+    { x: 700, y: 700, type: 'mission', name: 'OG Loc', desc: 'Misión de OG Loc', quest: 'ogloc1' },
+    { x: 2100, y: 2200, type: 'shop', name: 'Ammu-Nation', desc: 'Comprar armas' },
+    { x: 1000, y: 1000, type: 'shop', name: 'Cluckin Bell', desc: 'Restaurante - Cura salud' },
+    { x: 2700, y: 500, type: 'shop', name: 'Binco', desc: 'Tienda de ropa' },
+    { x: 2900, y: 2900, type: 'mission', name: 'Cesar', desc: 'Carrera callejera', quest: 'race1' },
+];
+
+// ===== PICKUPS =====
+function spawnPickups() {
+    for (let i = 0; i < 20; i++) {
+        let road = roads[Math.floor(Math.random() * roads.length)];
+        let types = ['health', 'armor', 'ammo', 'money'];
+        let type = types[Math.floor(Math.random() * types.length)];
+        game.pickups.push({
+            x: road.x + Math.random() * road.w,
+            y: road.y + Math.random() * road.h,
+            type: type, collected: false, respawn: 0
+        });
+    }
+}
+
+// ===== CAMERA =====
+let cam = { x: 0, y: 0 };
+function updateCam() {
+    let tx, ty;
+    if (player.inVehicle) {
+        tx = player.inVehicle.x - CW / 2;
+        ty = player.inVehicle.y - CH / 2;
+    } else {
+        tx = player.x - CW / 2;
+        ty = player.y - CH / 2;
+    }
+    cam.x += (tx - cam.x) * 0.1;
+    cam.y += (ty - cam.y) * 0.1;
+    cam.x = Math.max(0, Math.min(WORLD_W - CW, cam.x));
+    cam.y = Math.max(0, Math.min(WORLD_H - CH, cam.y));
+}
+
+// ===== COLLISION =====
+function rectCollide(a, b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+function pointInBuilding(x, y, w, h) {
+    for (let b of buildings) {
+        if (x < b.x + b.w && x + w > b.x && y < b.y + b.h && y + h > b.y) return true;
+    }
+    return false;
+}
+
+// ===== PARTICLES =====
+function addParticle(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+        game.particles.push({
+            x, y, vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4,
+            life: 20 + Math.random() * 20, color, size: 2 + Math.random() * 3
+        });
+    }
+}
+
+// ===== SHOOT =====
+function shoot() {
+    if (player.dead) return;
+    let w = player.weapons[player.currentWeapon];
+    if (player.fireTimer > 0) return;
+    if (w.ammo <= 0) return;
+    player.fireTimer = w.rate;
+    if (w.ammo !== Infinity) w.ammo--;
+    updateWeaponHUD();
+
+    let px = player.inVehicle ? player.inVehicle.x : player.x;
+    let py = player.inVehicle ? player.inVehicle.y : player.y;
+
+    if (w.type === 'melee') {
+        let tx = px + Math.cos(player.angle) * w.range;
+        let ty = py + Math.sin(player.angle) * w.range;
+        // Hit peds
+        for (let p of peds) {
+            if (!p.dead && dist({ x: tx, y: ty }, p) < 25) {
+                damagePed(p, w.damage);
+            }
+        }
+        for (let p of police) {
+            if (!p.dead && dist({ x: tx, y: ty }, p) < 25) {
+                damagePolice(p, w.damage);
+            }
+        }
+        addParticle(tx, ty, '#ff0', 3);
+    } else {
+        let spread = w.type === 'shotgun' ? 3 : 1;
+        for (let s = 0; s < spread; s++) {
+            let a = player.angle + (w.type === 'shotgun' ? (Math.random() - 0.5) * 0.4 : 0);
+            game.bullets.push({
+                x: px, y: py, vx: Math.cos(a) * 10, vy: Math.sin(a) * 10,
+                damage: w.damage, range: w.range, dist: 0, owner: 'player'
+            });
+        }
+        addParticle(px + Math.cos(player.angle) * 15, py + Math.sin(player.angle) * 15, '#ff0', 2);
+    }
+    // Wanted level
+    if (game.wantedLevel === 0) {
+        let nearPed = peds.some(p => !p.dead && dist(p, { x: px, y: py }) < 200);
+        if (nearPed) { game.wantedLevel = 1; game.wantedTimer = 600; }
+    }
+}
+
+function damagePed(p, dmg) {
+    p.health -= dmg;
+    addParticle(p.x, p.y, '#e74c3c', 5);
+    if (p.health <= 0) {
+        p.dead = true;
+        game.kills++;
+        game.money += p.money;
+        if (game.wantedLevel < 5) { game.wantedLevel = Math.min(5, game.wantedLevel + 1); }
+        game.wantedTimer = 900;
+    } else {
+        p.hostile = true;
+    }
+}
+
+function damagePolice(p, dmg) {
+    p.health -= dmg;
+    addParticle(p.x, p.y, '#3498db', 5);
+    if (p.health <= 0) {
+        p.dead = true;
+        game.kills++;
+        game.money += 50;
+        if (game.wantedLevel < 5) game.wantedLevel = Math.min(5, game.wantedLevel + 1);
+        game.wantedTimer = 1200;
+    }
+}
+
+function damagePlayer(dmg) {
+    if (player.dead) return;
+    if (player.armor > 0) {
+        let absorbed = Math.min(player.armor, dmg * 0.7);
+        player.armor -= absorbed;
+        dmg -= absorbed;
+    }
+    player.health -= dmg;
+    addParticle(player.x, player.y, '#e74c3c', 5);
+    if (player.health <= 0) {
+        player.health = 0;
+        player.dead = true;
+        if (player.inVehicle) { player.inVehicle.occupied = false; player.inVehicle = null; }
+        document.getElementById('respawnScreen').style.display = 'flex';
+    }
+}
+
+// ===== VEHICLE =====
+function toggleVehicle() {
+    if (player.dead) return;
+    if (player.inVehicle) {
+        player.x = player.inVehicle.x + 30;
+        player.y = player.inVehicle.y;
+        player.inVehicle.occupied = false;
+        player.inVehicle.vel = 0;
+        player.inVehicle = null;
+    } else {
+        for (let v of vehicles) {
+            if (!v.occupied && dist(player, v) < 50) {
+                player.inVehicle = v;
+                v.occupied = true;
+                v.aiDrive = false;
+                showMission(`Subiste a: ${v.name}`);
+                break;
+            }
+        }
+    }
+}
+
+// ===== INTERACT =====
+function interact() {
+    if (player.dead) return;
+    let px = player.inVehicle ? player.inVehicle.x : player.x;
+    let py = player.inVehicle ? player.inVehicle.y : player.y;
+    for (let m of missionMarkers) {
+        if (dist({ x: px, y: py }, m) < 50) {
+            if (m.type === 'shop') {
+                if (m.name === 'Ammu-Nation') {
+                    if (game.money >= 500) {
+                        game.money -= 500;
+                        player.weapons[1].ammo += 30;
+                        player.weapons[2].ammo += 60;
+                        player.weapons[3].ammo += 15;
+                        showMission('Munición comprada! -\$500');
+                    } else showMission('No tienes suficiente dinero!');
+                } else if (m.name === 'Cluckin Bell') {
+                    if (game.money >= 100) {
+                        game.money -= 100;
+                        player.health = Math.min(100, player.health + 50);
+                        showMission('Comida comprada! Salud restaurada. -\$100');
+                    } else showMission('No tienes suficiente dinero!');
+                } else if (m.name === 'Binco') {
+                    if (game.money >= 200) {
+                        game.money -= 200;
+                        player.armor = Math.min(100, player.armor + 50);
+                        showMission('Chaleco comprado! +50 Armadura. -\$200');
+                    } else showMission('No tienes dinero!');
+                }
+            } else if (m.type === 'mission' && !game.missionActive) {
+                if (!game.completedMissions.includes(m.quest)) {
+                    startMission(m);
+                } else {
+                    showMission('Misión ya completada!');
+                }
+            }
+        }
+    }
+}
+
+// ===== MISSIONS =====
+let missionTarget = null;
+let missionEnemies = [];
+
+function startMission(m) {
+    game.missionActive = m.quest;
+    game.missionStep = 0;
+    missionEnemies = [];
+
+    if (m.quest === 'smoke1') {
+        showMission('Big Smoke: "CJ! Necesito que elimines a los Ballas en Idlewood!"');
+        missionTarget = { x: 1400, y: 1700 };
+        for (let i = 0; i < 5; i++) {
+            missionEnemies.push({
+                x: 1350 + Math.random() * 100, y: 1650 + Math.random() * 100,
+                w: 14, h: 14, health: 50, speed: 2, color: '#9b59b6',
+                dead: false, hostile: true, fireTimer: 0, gang: 'ballas'
+            });
+        }
+    } else if (m.quest === 'ryder1') {
+        showMission('Ryder: "Vamos a robar la pizzería! Ve al Downtown!"');
+        missionTarget = { x: 800, y: 800 };
+    } else if (m.quest === 'ogloc1') {
+        showMission('OG Loc: "Necesito que lleves este paquete a East LS!"');
+        missionTarget = { x: 2700, y: 1600 };
+    } else if (m.quest === 'race1') {
+        showMission('Cesar: "Carrera callejera! Llega al checkpoint!"');
+        missionTarget = { x: 700, y: 2900 };
+    }
+}
+
+function updateMission() {
+    if (!game.missionActive) return;
+    let px = player.inVehicle ? player.inVehicle.x : player.x;
+    let py = player.inVehicle ? player.inVehicle.y : player.y;
+
+    if (game.missionActive === 'smoke1') {
+        // Kill all ballas
+        for (let e of missionEnemies) {
+            if (!e.dead) {
+                let d = dist(e, { x: px, y: py });
+                if (d < 250) {
+                    e.fireTimer--;
+                    let a = Math.atan2(py - e.y, px - e.x);
+                    if (d > 40) { e.x += Math.cos(a) * e.speed * 0.5; e.y += Math.sin(a) * e.speed * 0.5; }
+                    if (e.fireTimer <= 0 && d < 200) {
+                        e.fireTimer = 20;
+                        game.bullets.push({
+                            x: e.x, y: e.y, vx: Math.cos(a) * 7, vy: Math.sin(a) * 7,
+                            damage: 10, range: 200, dist: 0, owner: 'enemy'
+                        });
+                    }
+                }
+            }
+        }
+        // Check bullets hitting mission enemies
+        if (missionEnemies.every(e => e.dead)) {
+            completeMission('smoke1', 3000);
+        }
+    } else if (missionTarget) {
+        if (dist({ x: px, y: py }, missionTarget) < 40) {
+            if (game.missionActive === 'ryder1') {
+                if (game.missionStep === 0) {
+                    game.missionStep = 1;
+                    showMission('Ryder: "Bien! Ahora vuelve a Grove Street!"');
+                    missionTarget = { x: 2000, y: 1950 };
+                } else {
+                    completeMission('ryder1', 2000);
+                }
+            } else if (game.missionActive === 'ogloc1') {
+                completeMission('ogloc1', 2500);
+            } else if (game.missionActive === 'race1') {
+                completeMission('race1', 5000);
+            }
+        }
+    }
+}
+
+function completeMission(id, reward) {
+    game.completedMissions.push(id);
+    game.money += reward;
+    game.missionActive = null;
+    missionTarget = null;
+    missionEnemies = [];
+    showMission(`MISIÓN COMPLETADA! +$${reward}`);
+}
+
+// ===== SHOW MISSION TEXT =====
+let missionTextTimer = 0;
+function showMission(text) {
+    document.getElementById('missionText').textContent = text;
+    document.getElementById('missionText').style.display = 'block';
+    missionTextTimer = 180;
+}
+
+// ===== RESPAWN =====
+function respawn() {
+    player.health = 100;
+    player.armor = 0;
+    player.dead = false;
+    player.x = 2000; player.y = 2050;
+    game.money = Math.max(0, game.money - 500);
+    game.wantedLevel = 0;
+    game.missionActive = null;
+    missionTarget = null;
+    missionEnemies = [];
+    police.length = 0;
+    document.getElementById('respawnScreen').style.display = 'none';
+    showMission('Reapareciste en el hospital. -\$500');
+}
+
+// ===== HUD UPDATE =====
+function updateHUD() {
+    document.getElementById('healthFill').style.width = player.health + '%';
+    document.getElementById('armorFill').style.width = player.armor + '%';
+    document.getElementById('staminaFill').style.width = player.stamina + '%';
+    document.getElementById('moneyDisplay').textContent = '$' + game.money.toLocaleString();
+    let stars = '';
+    for (let i = 0; i < 5; i++) stars += i < game.wantedLevel ? '★' : '☆';
+    document.getElementById('wantedStars').textContent = stars;
+
+    // Time
+    let h = Math.floor(game.time / 60) % 24;
+    let m = Math.floor(game.time % 60);
+    document.getElementById('timeText').textContent = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+
+    // Location
+    let px = player.inVehicle ? player.inVehicle.x : player.x;
+    let py = player.inVehicle ? player.inVehicle.y : player.y;
+    let loc = 'Los Santos';
+    for (let z of zones) {
+        if (px > z.x && px < z.x + z.w && py > z.y && py < z.y + z.h) { loc = z.name; break; }
+    }
+    document.getElementById('locationText').textContent = loc;
+
+    if (missionTextTimer > 0) {
+        missionTextTimer--;
+        if (missionTextTimer <= 0) document.getElementById('missionText').style.display = 'none';
+    }
+}
+
+function updateWeaponHUD() {
+    let w = player.weapons[player.currentWeapon];
+    document.getElementById('weaponName').textContent = w.icon + ' ' + w.name;
+    document.getElementById('ammoCount').textContent = w.ammo === Infinity ? '∞' : w.ammo;
+}
+
+// ===== UPDATE =====
+function update() {
+    if (!gameStarted || player.dead) return;
+
+    game.time += 0.02;
+    if (game.time >= 1440) game.time = 0;
+
+    // Player movement
+    let isRunning = keys['shift'];
+    let spd = isRunning ? player.runSpeed : player.speed;
+
+    if (player.inVehicle) {
+        let v = player.inVehicle;
+        if (keys['w']) v.vel = Math.min(v.maxSpeed, v.vel + v.accel);
+        if (keys['s']) v.vel = Math.max(-v.maxSpeed / 2, v.vel - v.accel);
+        if (!keys['w'] && !keys['s']) v.vel *= 0.97;
+        if (keys['a']) v.angle -= 0.04 * (v.vel !== 0 ? Math.sign(v.vel) : 0);
+        if (keys['d']) v.angle += 0.04 * (v.vel !== 0 ? Math.sign(v.vel) : 0);
+
+        let nx = v.x + Math.cos(v.angle) * v.vel;
+        let ny = v.y + Math.sin(v.angle) * v.vel;
+        if (!pointInBuilding(nx - v.w / 2, ny - v.h / 2, v.w, v.h)) {
+            v.x = nx; v.y = ny;
+        } else { v.vel *= -0.3; }
+        v.x = Math.max(0, Math.min(WORLD_W, v.x));
+        v.y = Math.max(0, Math.min(WORLD_H, v.y));
+        player.angle = v.angle;
+
+        // Run over peds
+        for (let p of peds) {
+            if (!p.dead && Math.abs(v.vel) > 2 && dist(v, p) < 25) {
+                damagePed(p, 80);
+            }
+        }
+    } else {
+        // Aim
+        let aimX = mouse.x + cam.x;
+        let aimY = mouse.y + cam.y;
+        player.angle = Math.atan2(aimY - player.y, aimX - player.x);
+
+        let dx = 0, dy = 0;
+        if (keys['w']) dy = -1;
+        if (keys['s']) dy = 1;
+        if (keys['a']) dx = -1;
+        if (keys['d']) dx = 1;
+        if (dx || dy) {
+            let len = Math.hypot(dx, dy);
+            dx /= len; dy /= len;
+        }
+
+        // Stamina
+        if (isRunning && (dx || dy)) {
+            player.stamina = Math.max(0, player.stamina - 0.3);
+            if (player.stamina <= 0) { spd = player.speed; }
+        } else {
+            player.stamina = Math.min(100, player.stamina + 0.15);
+        }
+
+        let nx = player.x + dx * spd;
+        let ny = player.y + dy * spd;
+        if (!pointInBuilding(nx - player.w / 2, ny - player.h / 2, player.w, player.h)) {
+            player.x = nx; player.y = ny;
+        }
+        player.x = Math.max(0, Math.min(WORLD_W, player.x));
+        player.y = Math.max(0, Math.min(WORLD_H, player.y));
+    }
+
+    // Fire
+    if (player.fireTimer > 0) player.fireTimer--;
+    if (mouseDown) shoot();
+
+    // Bullets
+    for (let i = game.bullets.length - 1; i >= 0; i--) {
+        let b = game.bullets[i];
+        b.x += b.vx; b.y += b.vy;
+        b.dist += Math.hypot(b.vx, b.vy);
+        if (b.dist > b.range || b.x < 0 || b.x > WORLD_W || b.y < 0 || b.y > WORLD_H) {
+            game.bullets.splice(i, 1); continue;
+        }
+        // Hit building
+        if (pointInBuilding(b.x - 2, b.y - 2, 4, 4)) {
+            addParticle(b.x, b.y, '#aaa', 3);
+            game.bullets.splice(i, 1); continue;
+        }
+        if (b.owner === 'player') {
+            // Hit peds
+            for (let p of peds) {
+                if (!p.dead && dist(b, p) < 12) {
+                    damagePed(p, b.damage);
+                    game.bullets.splice(i, 1); break;
+                }
+            }
+            // Hit police
+            for (let p of police) {
+                if (!p.dead && dist(b, p) < 12) {
+                    damagePolice(p, b.damage);
+                    game.bullets.splice(i, 1); break;
+                }
+            }
+            // Hit mission enemies
+            for (let e of missionEnemies) {
+                if (!e.dead && dist(b, e) < 12) {
+                    e.health -= b.damage;
+                    addParticle(e.x, e.y, '#e74c3c', 5);
+                    if (e.health <= 0) { e.dead = true; game.kills++; game.money += 100; }
+                    game.bullets.splice(i, 1); break;
+                }
+            }
+        } else {
+            // Hit player
+            let px = player.inVehicle ? player.inVehicle.x : player.x;
+            let py = player.inVehicle ? player.inVehicle.y : player.y;
+            if (dist(b, { x: px, y: py }) < 15) {
+                damagePlayer(b.damage);
+                game.bullets.splice(i, 1);
+            }
+        }
+    }
+
+    // Peds AI
+    for (let p of peds) {
+        if (p.dead) continue;
+        let px = player.inVehicle ? player.inVehicle.x : player.x;
+        let py = player.inVehicle ? player.inVehicle.y : player.y;
+        let d = dist(p, { x: px, y: py });
+
+        if (p.hostile && p.hasGun && d < 250) {
+            let a = Math.atan2(py - p.y, px - p.x);
+            if (d > 50) { p.x += Math.cos(a) * p.speed; p.y += Math.sin(a) * p.speed; }
+            p.fireTimer--;
+            if (p.fireTimer <= 0) {
+                p.fireTimer = 25 + Math.floor(Math.random() * 15);
+                game.bullets.push({
+                    x: p.x, y: p.y, vx: Math.cos(a) * 6, vy: Math.sin(a) * 6,
+                    damage: 8, range: 200, dist: 0, owner: 'enemy'
+                });
+            }
+        } else if (p.hostile && d < 150) {
+            let a = Math.atan2(py - p.y, px - p.x);
+            p.x += Math.cos(a) * p.speed * 1.5;
+            p.y += Math.sin(a) * p.speed * 1.5;
+            if (d < 25) damagePlayer(5);
+        } else {
+            p.moveTimer--;
+            if (p.moveTimer <= 0) {
+                p.angle = Math.random() * Math.PI * 2;
+                p.moveTimer = 60 + Math.random() * 120;
+            }
+            let nx2 = p.x + Math.cos(p.angle) * p.speed * 0.4;
+            let ny2 = p.y + Math.sin(p.angle) * p.speed * 0.4;
+            if (!pointInBuilding(nx2, ny2, p.w, p.h)) { p.x = nx2; p.y = ny2; }
+        }
+    }
+
+    // Police AI
+    if (game.wantedLevel > 0) {
+        game.wantedTimer--;
+        if (game.wantedTimer <= 0) {
+            game.wantedLevel = Math.max(0, game.wantedLevel - 1);
+            game.wantedTimer = 600;
+            if (game.wantedLevel === 0) {
+                police.length = 0;
+                showMission('Has perdido la búsqueda policial');
+            }
+        }
+        if (police.length < game.wantedLevel * 2) spawnPolice(1);
+
+        for (let p of police) {
+            if (p.dead) continue;
+            let px = player.inVehicle ? player.inVehicle.x : player.x;
+            let py = player.inVehicle ? player.inVehicle.y : player.y;
+            let a = Math.atan2(py - p.y, px - p.x);
+            let d = dist(p, { x: px, y: py });
+            p.x += Math.cos(a) * p.speed;
+            p.y += Math.sin(a) * p.speed;
+            p.fireTimer--;
+            if (p.fireTimer <= 0 && d < 300) {
+                p.fireTimer = 18;
+                game.bullets.push({
+                    x: p.x, y: p.y, vx: Math.cos(a) * 8, vy: Math.sin(a) * 8,
+                    damage: 12, range: 300, dist: 0, owner: 'enemy'
+                });
+            }
+        }
+    }
+
+    // Vehicle AI
+    for (let v of vehicles) {
+        if (v.occupied || !v.aiDrive) continue;
+        v.aiTimer--;
+        if (v.aiTimer <= 0) {
+            v.aiTimer = 120 + Math.random() * 180;
+            v.vel = (Math.random() < 0.3) ? 0 : 1.5 + Math.random() * 2;
+        }
+        v.x += Math.cos(v.angle) * v.vel;
+        v.y += Math.sin(v.angle) * v.vel;
+        if (pointInBuilding(v.x - v.w / 2, v.y - v.h / 2, v.w, v.h) || v.x < 20 || v.x > WORLD_W - 20 || v.y < 20 || v.y > WORLD_H - 20) {
+            v.angle += Math.PI;
+            v.x += Math.cos(v.angle) * 10;
+            v.y += Math.sin(v.angle) * 10;
+        }
+    }
+
+    // Pickups
+    let ppx = player.inVehicle ? player.inVehicle.x : player.x;
+    let ppy = player.inVehicle ? player.inVehicle.y : player.y;
+    for (let pk of game.pickups) {
+        if (pk.collected) {
+            pk.respawn--;
+            if (pk.respawn <= 0) pk.collected = false;
+            continue;
+        }
+        if (dist({ x: ppx, y: ppy }, pk) < 25) {
+            pk.collected = true;
+            pk.respawn = 600;
+            if (pk.type === 'health') { player.health = Math.min(100, player.health + 25); showMission('+25 Salud'); }
+            if (pk.type === 'armor') { player.armor = Math.min(100, player.armor + 25); showMission('+25 Armadura'); }
+            if (pk.type === 'ammo') { player.weapons[1].ammo += 15; player.weapons[2].ammo += 30; showMission('+Munición'); }
+            if (pk.type === 'money') { game.money += 500; showMission('+\$500'); }
+        }
+    }
+
+    // Particles
+    for (let i = game.particles.length - 1; i >= 0; i--) {
+        let p = game.particles[i];
+        p.x += p.vx; p.y += p.vy;
+        p.life--;
+        p.vx *= 0.95; p.vy *= 0.95;
+        if (p.life <= 0) game.particles.splice(i, 1);
+    }
+
+    updateMission();
+    updateCam();
+    updateHUD();
+}
+
+// ===== DRAW =====
+function draw() {
+    ctx.clearRect(0, 0, CW, CH);
+    ctx.save();
+    ctx.translate(-cam.x, -cam.y);
+
+    // Grass
+    ctx.fillStyle = '#2d5a1b';
+    ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+
+    // Roads
+    for (let r of roads) {
+        ctx.fillStyle = '#333';
+        ctx.fillRect(r.x, r.y, r.w, r.h);
+        // Road lines
+        ctx.strokeStyle = '#ff0';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([15, 15]);
+        ctx.beginPath();
+        if (r.dir === 'h') {
+            ctx.moveTo(r.x, r.y + r.h / 2);
+            ctx.lineTo(r.x + r.w, r.y + r.h / 2);
+        } else {
+            ctx.moveTo(r.x + r.w / 2, r.y);
+            ctx.lineTo(r.x + r.w / 2, r.y + r.h);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // Sidewalk
+        ctx.fillStyle = '#555';
+        if (r.dir === 'h') {
+            ctx.fillRect(r.x, r.y - 5, r.w, 5);
+            ctx.fillRect(r.x, r.y + r.h, r.w, 5);
+        } else {
+            ctx.fillRect(r.x - 5, r.y, 5, r.h);
+            ctx.fillRect(r.x + r.w, r.y, 5, r.h);
+        }
+    }
+
+    // Buildings
+    for (let b of buildings) {
+        ctx.fillStyle = b.color;
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(b.x, b.y, b.w, b.h);
+        // Windows
+        ctx.fillStyle = (game.time > 360 && game.time < 1200) ? 'rgba(150,200,255,0.3)' : 'rgba(255,200,50,0.6)';
+        for (let wy = b.y + 8; wy < b.y + b.h - 8; wy += 14) {
+            for (let wx = b.x + 6; wx < b.x + b.w - 6; wx += 12) {
+                ctx.fillRect(wx, wy, 5, 5);
+            }
+        }
+    }
+
+    // Pickups
+    for (let pk of game.pickups) {
+        if (pk.collected) continue;
+        let glow = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+        ctx.globalAlpha = glow;
+        if (pk.type === 'health') { ctx.fillStyle = '#e74c3c'; }
+        if (pk.type === 'armor') { ctx.fillStyle = '#3498db'; }
+        if (pk.type === 'ammo') { ctx.fillStyle = '#f39c12'; }
+        if (pk.type === 'money') { ctx.fillStyle = '#2ecc71'; }
+        ctx.beginPath();
+        ctx.arc(pk.x, pk.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#fff';
+        ctx.font = '8px Arial';
+        ctx.textAlign = 'center';
+        let icon = pk.type === 'health' ? '❤' : pk.type === 'armor' ? '🛡' : pk.type === 'ammo' ? '⚡' : '$';
+        ctx.fillText(icon, pk.x, pk.y + 3);
+    }
+
+    // Mission markers
+    for (let m of missionMarkers) {
+        let glow = Math.sin(Date.now() / 300) * 5 + 15;
+        ctx.fillStyle = m.type === 'mission' ? 'rgba(243,156,18,0.5)' : 'rgba(52,152,219,0.5)';
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, glow, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = m.type === 'mission' ? '#f39c12' : '#3498db';
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(m.type === 'mission' ? '!' : '$', m.x, m.y + 4);
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px Arial';
+        ctx.fillText(m.name, m.x, m.y - 18);
+    }
+
+    // Mission target
+    if (missionTarget) {
+        let glow2 = Math.sin(Date.now() / 200) * 5 + 20;
+        ctx.strokeStyle = '#f00';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(missionTarget.x, missionTarget.y, glow2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255,0,0,0.2)';
+        ctx.fill();
+    }
+
+    // Vehicles
+    for (let v of vehicles) {
+        ctx.save();
+        ctx.translate(v.x, v.y);
+        ctx.rotate(v.angle);
+        ctx.fillStyle = v.color;
+        ctx.fillRect(-v.w / 2, -v.h / 2, v.w, v.h);
+        // Windshield
+        ctx.fillStyle = 'rgba(100,200,255,0.4)';
+        ctx.fillRect(v.w / 4, -v.h / 2 + 2, v.w / 5, v.h - 4);
+        // Wheels
+        ctx.fillStyle = '#111';
+        ctx.fillRect(-v.w / 2 + 2, -v.h / 2 - 2, 8, 4);
+        ctx.fillRect(-v.w / 2 + 2, v.h / 2 - 2, 8, 4);
+        ctx.fillRect(v.w / 2 - 10, -v.h / 2 - 2, 8, 4);
+        ctx.fillRect(v.w / 2 - 10, v.h / 2 - 2, 8, 4);
+        // Headlights
+        if (game.time > 1100 || game.time < 360) {
+            ctx.fillStyle = '#ff0';
+            ctx.fillRect(v.w / 2 - 2, -v.h / 2 + 2, 4, 3);
+            ctx.fillRect(v.w / 2 - 2, v.h / 2 - 5, 4, 3);
+        }
+        if (v.name === 'Police Car') {
+            ctx.fillStyle = Date.now() % 500 < 250 ? '#e74c3c' : '#3498db';
+            ctx.fillRect(-5, -v.h / 2, 10, 3);
+        }
+        ctx.restore();
+    }
+
+    // Peds
+    for (let p of peds) {
+        if (p.dead) {
+            ctx.fillStyle = '#800';
+            ctx.fillRect(p.x - 5, p.y - 2, 10, 4);
+            continue;
+        }
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fdb';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y - 2, 4, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Mission enemies
+    for (let e of missionEnemies) {
+        if (e.dead) continue;
+        ctx.fillStyle = e.color;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fdb';
+        ctx.beginPath();
+        ctx.arc(e.x, e.y - 2, 4, 0, Math.PI * 2);
+        ctx.fill();
+        // Health bar
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillRect(e.x - 10, e.y - 15, 20 * (e.health / 50), 3);
+    }
+
+    // Police
+    for (let p of police) {
+        if (p.dead) continue;
+        ctx.fillStyle = '#3498db';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#001';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y - 3, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#3498db';
+        ctx.fillRect(p.x - 6, p.y - 8, 12, 3);
+    }
+
+    // Player (not in vehicle)
+    if (!player.inVehicle && !player.dead) {
+        ctx.save();
+        ctx.translate(player.x, player.y);
+        ctx.rotate(player.angle);
+        // Body
+        ctx.fillStyle = '#2ecc71'; // Grove Street green
+        ctx.beginPath();
+        ctx.arc(0, 0, 9, 0, Math.PI * 2);
+        ctx.fill();
+        // Head
+        ctx.fillStyle = '#c68642';
+        ctx.beginPath();
+        ctx.arc(0, -2, 5, 0, Math.PI * 2);
+        ctx.fill();
+        // Weapon
+        ctx.fillStyle = '#555';
+        ctx.fillRect(8, -2, 10, 3);
+        ctx.restore();
+
+        // Aiming line
+        ctx.strokeStyle = 'rgba(255,0,0,0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y);
+        let w = player.weapons[player.currentWeapon];
+        ctx.lineTo(player.x + Math.cos(player.angle) * w.range, player.y + Math.sin(player.angle) * w.range);
+        ctx.stroke();
+
+        // Crosshair at mouse
+        ctx.strokeStyle = 'rgba(255,0,0,0.7)';
+        ctx.lineWidth = 1.5;
+        let mx = mouse.x + cam.x, my = mouse.y + cam.y;
+        ctx.beginPath(); ctx.arc(mx, my, 10, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(mx - 15, my); ctx.lineTo(mx + 15, my); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(mx, my - 15); ctx.lineTo(mx, my + 15); ctx.stroke();
+    }
+
+    // Bullets
+    ctx.fillStyle = '#ff0';
+    for (let b of game.bullets) {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Particles
+    for (let p of game.particles) {
+        ctx.globalAlpha = p.life / 40;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
+
+    // Day/Night overlay
+    let nightAlpha = 0;
+    if (game.time < 300 || game.time > 1260) nightAlpha = 0.4;
+    else if (game.time < 420) nightAlpha = 0.4 * (1 - (game.time - 300) / 120);
+    else if (game.time > 1140) nightAlpha = 0.4 * ((game.time - 1140) / 120);
+    if (nightAlpha > 0) {
+        ctx.fillStyle = `rgba(0,0,30,${nightAlpha})`;
+        ctx.fillRect(0, 0,
